@@ -1,0 +1,49 @@
+version: "3.7"
+
+services:
+  zabbix-db:
+    image: mariadb:10.5
+    command: --character-set-server=utf8 --collation-server=utf8_bin
+    env_file:
+      - ./.env.maria
+    restart: always
+    volumes:
+      - zabbix_db_vol:/var/lib/mysql
+    networks:
+      - zabbix_net
+
+  zabbix-server:
+    image: zabbix/zabbix-server-mysql:5.0-ubuntu-latest
+    env_file:
+      - ./.env.zabbix
+    restart: always
+    depends_on:
+      - zabbix-db
+    volumes:
+      - ./Zabbix-Notification-Telegram:/usr/lib/zabbix/alertscripts:ro
+    networks:
+      - zabbix_net
+
+  zabbix-web:
+    image: zabbix/zabbix-web-nginx-mysql:5.0-ubuntu-latest
+    env_file:
+      - ./.env.zabbix.web
+    restart: always
+    depends_on:
+      - zabbix-db
+      - zabbix-server
+    ports:
+      - 8080:8080
+      - 8433:433
+    networks:
+      - zabbix_net
+
+volumes:
+  zabbix_db_vol:
+networks:
+  zabbix_net:
+    # Workaround of docker and VPN bug.
+    # https://github.com/eth2-educators/eth2-docker/issues/118
+    ipam:
+      config:
+        - subnet: 172.27.3.0/29
